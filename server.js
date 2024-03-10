@@ -3,9 +3,11 @@ import dotenv from "dotenv";
 import connectDB from "./config/db";
 
 dotenv.config();
-connectDB();
+
 const app = express();
 app.use(express.json());
+
+connectDB();
 
 app.get("/", (req, res) => {
     res.send("Server is running...");
