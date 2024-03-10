@@ -1,10 +1,13 @@
-import mongoose, { connect } from "mongoose";
+import mongoose from "mongoose";
 
 const connectDB = async () => {
     try {
-        await mongoose.connect(proccess.evn.DB_URI)
+        await mongoose.connect(process.evn.DB_URI)
+        console.log('Database is connected...')
     }
     catch (error) {
+        console.log(`ERROR: ${error.message}`);
+        process.exit(1);
     }
 }
 
