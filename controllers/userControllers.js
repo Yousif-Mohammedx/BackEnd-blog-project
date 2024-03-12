@@ -1,17 +1,20 @@
+import { uploadPicture } from '../middleware/uploadPictureMiddleware';
 import User from '../models/User';
 
 const registerUser = async (req, res, next) => {
     try {
         const { name, email, password } = req.body;
         // check whether the user exists or not
-        let user = await User.findOneAndUpdate({ email });
+        let user = await User.findOne({ email });
         if (user) {
-            throw new Error("User have already registered")
+            throw new Error("User has already registered");
         }
         user = await User.create({
-            name, email, password,
-        })
-        return res.status(201)({
+            name,
+            email,
+            password,
+        });
+        return res.status(201).json({
             _id: user._id,
             avatar: user.avatar,
             name: user.name,
@@ -54,7 +57,7 @@ const userProfile = async (req, res, next) => {
     try {
         let user = await User.findById(req.user._id);
         if (user) {
-            return res.status(201)({
+            return res.status(201).json({
                 _id: user._id,
                 avatar: user.avatar,
                 name: user.name,
@@ -65,26 +68,25 @@ const userProfile = async (req, res, next) => {
         } else {
             let error = new Error("User not found");
             error.statusCode = 404;
-            next(error)
+            next(error);
         }
     } catch (error) {
         next(error);
     }
-}
+};
 
 const updateProfile = async (req, res, next) => {
     try {
         let user = await User.findById(req.user._id);
 
         if (!user) {
-            throw new Error("User not found")
+            throw new Error("User not found");
         }
 
         user.name = req.body.name || user.name;
         user.email = req.body.email || user.email;
         if (req.body.password && req.body.password.length < 6) {
-            throw new Error("Password length must be at least 6 character")
-
+            throw new Error("Password length must be at least 6 characters");
         } else if (req.body.password) {
             user.password = req.body.password;
         }
@@ -105,8 +107,52 @@ const updateProfile = async (req, res, next) => {
 
 const updateProfilePicture = async (req, res, next) => {
     try {
+        const upload = uploadPicture.single('profilePicture');
+        upload(req, res, async function (err) {
+            if (err) {
+                const error = new Error("An unknown error occurred when uploading" + err.message);
+                next(error);
+            } else {
+                // everything went well
+                if (req.file) {
+                    const updateUser = await User.findByIdAndUpdate(
+                        req.user._id,
+                        {
+                            avatar: req.file.filename,
+                        },
+                        { new: true }
+                    );
+                    res.json({
+                        _id: updateUser._id,
+                        avatar: updateUser.avatar,
+                        name: updateUser.name,
+                        email: updateUser.email,
+                        verified: updateUser.verified,
+                        admin: updateUser.admin,
+                        token: await updateUser.generateJWT(),
+                    });
+                } else {
+                    let filename;
+                    let updateUser = await User.findById(req.user._id);
+                    filename = updateUser.avatar;
+                    updateUser.avatar = "";
+                    await updateUser.save();
+                    fileRemover(filename);
+                    res.json({
+                        _id: updateUser._id,
+                        avatar: updateUser.avatar,
+                        name: updateUser.name,
+                        email: updateUser.email,
+                        verified: updateUser.verified,
+                        admin: updateUser.admin,
+                        token: await updateUser.generateJWT(),
+                    });
+                }
+            }
+        });
     } catch (error) {
         next(error);
     }
-}
+};
+
 export { registerUser, loginUser, userProfile, updateProfile, updateProfilePicture };
